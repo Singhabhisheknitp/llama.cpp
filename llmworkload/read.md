@@ -80,7 +80,25 @@ The `mem_buffer` can either be allocated by GGML (NULL case) or pre-allocated by
 
 ```
 
-'ggml_cgraph': data structure used for holding compuation graphs 
+'ggml_cgraph': data structure used for holding compuation graphs : "order of computation" that will be transferred to the backend.
+
+
+```c
+ struct ggml_cgraph {
+    int size;    // maximum number of nodes/leafs/grads/grad_accs
+    int n_nodes; // number of nodes currently in use
+    int n_leafs; // number of leafs currently in use
+
+    struct ggml_tensor ** nodes;     // tensors with data that can change if the graph is evaluated
+    struct ggml_tensor ** grads;     // the outputs of these tensors are the gradients of the nodes
+    struct ggml_tensor ** grad_accs; // accumulators for node gradients
+    struct ggml_tensor ** leafs;     // tensors with constant data
+
+    struct ggml_hash_set visited_hash_set;
+
+    enum ggml_cgraph_eval_order order;
+};
+```
 
 Please Note all theese objects such as ggml_tensor , ggml_cgraph, everything is created in the same container ggml_context. every time we create some object , we store its meta data and shift the pointer .mem_buffer by that much offset and then store the actual data content and then shift the .mem_buffer to final end. 
 
@@ -91,8 +109,28 @@ This way all the objects are stored in contigeous space along with its respectiv
 
 struct ggml_tensor * c = ggml_add(ctx, a, b); : this sysntax will create add graph with two tensor a and b as leaf and c as parent and when we would do  ggml_build_forward_expand(gf, c); then that would result in marking c as final result or final parent in the graph
 
-ggml_build_forward_expand() -->ggml_build_forward_impl() --> ggml_visit_parents() : this final function build recursive travel of graphs and mark final result as parent node, last one is graph
+ggml_build_forward_expand() -->ggml_build_forward_impl() --> ggml_visit_parents() : this final function build recursive travel of graphs , given parent node and travels way back and the child node recursively to build the graph
+
+Q. why this method, should not all the nodes automatically get connected the way computation happens
+
+
+ggml_graph_compute_with_ctx() : this function does actual computation planning and computation. 
+        a. ggml_graph_plan(): does planning of compuation of each node by dividing them in tasks and then allocating these tasks over CPU/GPU/NPU
+            1. Initialize thread count
+            2. Initialize planning variables
+            3. Analyze each node in the graph and count total memory buffer required for entire comp(work_size) and along all the nodes in cgraph, ca;culation max threads required for each node and final max_task filed holds the max no of threads needed , if any node will require less thread then the other threads will idle ? (it shoudl def be less than max core support that is ensured)
+            4. Add padding for cache line alignment
+            5. Create final plan: here func returns max buffer required for holding intermediate data for compuation, and max threads required for computaion , but memory allocation does not happen here.
+
+
+        b. ggml_new_buffer(): allocates an object in ggml_context that blocks that much of memory(work_size) for intermiate compuation requirement for entire graph
+
+        c. ggml_graph_compute(): 
+            1. muple threads does the computation of all the nodes compuation 
+            2. thread level synchronization 
+            3. ggml_graph_compute()-->ggml_graph_compute_thread()-->ggml_compute_forward(&params, node)-->
+               **ggml_compute_forward(&params, node)**: this is the function where depending on node OPS the different low level tensor operation library is called
 
 
 
-
+![alt text](image.png)
