@@ -80,8 +80,6 @@ struct ggml_hash_set visited_hash_set;
 enum ggml_cgraph_eval_order order;
 };
 
-!alt text
-
 
 Please Note all these objects such as ggml_tensor, ggml_cgraph, everything is created in the same container ggml_context. Every time we create some object, we store its metadata and shift the pointer .mem_buffer by that much offset and then store the actual data content and then shift the .mem_buffer to final end. 
 
