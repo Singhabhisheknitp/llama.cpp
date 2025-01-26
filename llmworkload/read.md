@@ -376,8 +376,22 @@ llama_decode_impl(llama_context & lctx, llama_batch   inp_batch): This function 
 
             11. Final Graph building by traversing from parent node
                 ggml_build_forward_expand(gf, cur)
+ 
 
-                
+ 5. llama_graph_compute(lctx, gf, n_threads, threadpool) CALL STACK: 
+    ggml_backend_sched_graph_compute_async(lctx.sched.get(), gf)-->ggml_backend_sched_compute_splits(sched)-->ggml_backend_graph_compute_async(split_backend, &split->graph)-->
+    
+    
+    enum ggml_status ggml_backend_graph_compute_async(ggml_backend_t backend, struct ggml_cgraph * cgraph) {
+    return backend->iface.graph_compute(backend, cgraph);}
+
+
+    This is where it will start calling back-end specific compute kernels , for CPU it is 
+    ggml_backend_cpu_graph_compute(ggml_backend_t backend, struct ggml_cgraph * cgraph)--->ggml_graph_compute(cgraph, &cplan); : whcih we have already mentioned how down the line that distributes 
+
+    ISSUE: How to ROI marker need to be places on the entire graph traversal ????
+
+
 
             
 
