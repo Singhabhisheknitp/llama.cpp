@@ -126,8 +126,7 @@ The function call flow is as follows:
 
 
 
-
-#LLM specific frontend  learning in llama.cpp
+# LLM specific frontend  learning in llama.cpp
 
 
 
