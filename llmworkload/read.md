@@ -127,35 +127,35 @@ The function call flow is as follows:
 
 
 
-
-
-    ggml_backend_load_all(): loads the system library for backend device (cuda.so)
-
-    struct llama_model_params XYZ = llama_model_default_params(): this struct has features that tells how ur LLM will be computed 
-    These parameters control how the LLaMA model is loaded and executed, allowing for:
-      GPU/CPU distribution
-      Memory management
-      Multi-device computation
-      Progress monitoring
-      Model validation
-      Performance optimization
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                            LLM specific frontend in llama.cpp
 
 
 
-   struct llama_model : this struct  has all the features of LLM models (Weights, Activations, Tokenization) along with how it is stored processed and its performace metrics , so many thing. I have just put imp one for understanding
+`ggml_backend_load_all()`: loads the system library for backend device (cuda.so)
 
-   Imp is hyperparameters , vocab, 
+`struct llama_model_params XYZ = llama_model_default_params()`: this struct has features that tells how ur LLM will be computed These parameters control how the LLaMA model is loaded and executed, allowing for:
+- GPU/CPU distribution
+- Memory management
+- Multi-device computation
+- Progress monitoring
+- Model validation
+- Performance optimization
 
-   struct llama_model {
+`struct llama_model`: this struct has all the features of LLM models (Weights, Activations, Tokenization) along with how it is stored processed and its performace metrics, so many thing. I have just put imp one for understanding
+
+Imp is hyperparameters, vocab,
+
+```cpp
+struct llama_model {
     std::string name = "n/a";
 
     llama_hparams hparams = {};
-    llama_vocab   vocab;
-     std::vector<llama_layer> layers; //VVI entire activation tensors go through the layers 
+    llama_vocab vocab;
+    std::vector<llama_layer> layers; //VVI entire activation tensors go through the layers
 
-    struct ggml_tensor * tok_embd   = nullptr;
-    struct ggml_tensor * pos_embd   = nullptr;
-    struct ggml_tensor * output     = nullptr;
+    struct ggml_tensor * tok_embd = nullptr;
+    struct ggml_tensor * pos_embd = nullptr;
+    struct ggml_tensor * output = nullptr;
 
     // list of devices used in this model
     std::vector<ggml_backend_dev_t> devices;
@@ -173,19 +173,17 @@ The function call flow is as follows:
 
     // model memory mapped files
     llama_mmaps mappings;
-
 };
+```
 
-llama_context_params : This gives the properties of context or prompt: like max context length, batch_size and many more 
-llama_model: about model arch details, model weights and everything 
+`llama_context_params`: This gives the properties of context or prompt: like max context length, batch_size and many more
+`llama_model`: about model arch details, model weights and everything
 
-llama_context: entire config (model + prompt): that need to be used llm inference 
+`llama_context`: entire config (model + prompt): that need to be used llm inference
 
+```cpp
 struct llama_context {
-    llama_context(const llama_model & model)
-        : model(model)
-        , t_start_us(model.t_start_us)
-        , t_load_us(model.t_load_us) {}
+    llama_context(const llama_model & model) : model(model), t_start_us(model.t_start_us), t_load_us(model.t_load_us) {}
 
     const struct llama_model & model;
 
@@ -214,183 +212,178 @@ struct llama_context {
     mutable int64_t t_compute_start_us = 0;
     mutable int64_t n_queued_tokens = 0;
 
-    mutable int32_t n_p_eval = 0; // number of tokens in eval calls for the prompt (with batch size > 1)
-    mutable int32_t n_eval   = 0; // number of eval calls
+    mutable int32_t n_p_eval = 0;
+    mutable int32_t n_eval   = 0;
 
-    // host buffer for the model output (logits and embeddings)
     ggml_backend_buffer_ptr buf_output;
 
-    // decode output (2-dimensional array: [n_outputs][n_vocab])
-    size_t  logits_size = 0; // capacity (of floats) for logits
+    size_t  logits_size = 0;
     float * logits      = nullptr;
 
-    std::vector<int32_t> output_ids; // map batch token positions to ids of the logits and embd buffers
-    size_t  output_size = 0; // capacity (of tokens positions) for the output buffers
-    int32_t n_outputs   = 0; // number of actually-used outputs in the current ubatch or last logical batch
+    std::vector<int32_t> output_ids;
+    size_t  output_size = 0;
+    int32_t n_outputs   = 0;
 
     bool logits_all = false;
 
-    // embeddings output (2-dimensional array: [n_outputs][n_embd])
-    // populated only when pooling_type == LLAMA_POOLING_TYPE_NONE
-    size_t  embd_size = 0; // capacity (of floats) for embeddings
+    size_t  embd_size = 0;
     float * embd      = nullptr;
 
-    // sequence embeddings output (map of [n_embd] vectors)
-    // populated only when pooling_type != LLAMA_POOLING_TYPE_NONE
     std::map<llama_seq_id, std::vector<float>> embd_seq;
 
-    // whether we are computing encoder output or decoder output
     bool is_encoding = false;
 
-    // TODO: find a better way to accommodate mutli-dimension position encoding methods
-    // number of position id each token get, 1 for each token in most cases.
-    // when using m-rope, it will be 3 position ids per token to representing 3 dimension coordinate.
     int n_pos_per_token = 1;
 
-    // output of the encoder part of the encoder-decoder models
     std::vector<float> embd_enc;
     std::vector<std::set<llama_seq_id>> seq_ids_enc;
 
-    // memory buffers used to evaluate the model
     std::vector<uint8_t> buf_compute_meta;
     ggml_backend_sched_ptr sched;
 
     ggml_abort_callback abort_callback      = nullptr;
     void *              abort_callback_data = nullptr;
 
-    // input tensors
-    struct ggml_tensor * inp_tokens;        // I32 [n_batch]
-    struct ggml_tensor * inp_embd;          // F32 [n_embd, n_batch]
-    struct ggml_tensor * inp_pos;           // I32 [n_batch]
-    struct ggml_tensor * inp_out_ids;       // I32 [n_outputs]
-    struct ggml_tensor * inp_KQ_mask;       // F32 [kv_size, n_batch]
-    struct ggml_tensor * inp_KQ_mask_swa;   // F32 [kv_size, n_batch]
-    struct ggml_tensor * inp_K_shift;       // I32 [kv_size]
-    struct ggml_tensor * inp_mean;          // F32 [n_batch, n_batch]
-    struct ggml_tensor * inp_cls;           // I32 [n_batch]
-    struct ggml_tensor * inp_s_copy;        // I32 [kv_size]
-    struct ggml_tensor * inp_s_mask;        // F32 [1, n_kv]
-    struct ggml_tensor * inp_s_seq;         // I32 [n_kv, n_batch]
-    struct ggml_tensor * inp_pos_bucket;    // I32 [n_batch|n_kv, n_batch]
-    struct ggml_tensor * inp_embd_enc;      // F32 [n_embd, n_outputs_enc]
-    struct ggml_tensor * inp_KQ_mask_cross; // F32 [n_outputs_enc, n_batch]
+    struct ggml_tensor * inp_tokens;
+    struct ggml_tensor * inp_embd;
+    struct ggml_tensor * inp_pos;
+    struct ggml_tensor * inp_out_ids;
+    struct ggml_tensor * inp_KQ_mask;
+    struct ggml_tensor * inp_KQ_mask_swa;
+    struct ggml_tensor * inp_K_shift;
+    struct ggml_tensor * inp_mean;
+    struct ggml_tensor * inp_cls;
+    struct ggml_tensor * inp_s_copy;
+    struct ggml_tensor * inp_s_mask;
+    struct ggml_tensor * inp_s_seq;
+    struct ggml_tensor * inp_pos_bucket;
+    struct ggml_tensor * inp_embd_enc;
+    struct ggml_tensor * inp_KQ_mask_cross;
 };
+```
 
-llama_batch: this is the conatiner data structure that holds entire data structure that need to be fed at the first stage of LLM inference.  during decode() it is sent with tokens ID string that further in LLM specift computation graphs gets converted in input embeddings.
+`llama_batch`: this is the container data structure that holds entire data structure that need to be fed at the first stage of LLM inference. during decode() it is sent with tokens ID string that further in LLM specific computation graphs gets converted in input embeddings.
 
+```cpp
 typedef struct llama_batch {
-        int32_t n_tokens;
+    int32_t n_tokens;
 
-        llama_token  *  token;
-        float        *  embd;
-        llama_pos    *  pos;
-        int32_t      *  n_seq_id;
-        llama_seq_id ** seq_id;
-        int8_t       *  logits; // TODO: rename this to "output"
-    } llama_batch;
+    llama_token  *  token;
+    float        *  embd;
+    llama_pos    *  pos;
+    int32_t      *  n_seq_id;
+    llama_seq_id ** seq_id;
+    int8_t       *  logits;
+} llama_batch;
+```
 
+`llama_decode(ctx, batch)`: this is the main function that starts entire decode stage (given a batch it predicts next token), it takes input as llama_context and llama_batch. so this happens in for loop where you keep decoding until you hit EOS character or you terminate if (prompt_token + predicted token) hit the context length, or we set manually how many we want to predict in the for loop of generating text
 
-llama_decode(ctx, batch): this is the main function that starts entire decode stage (given a batch it predicts next token ), it takes input as llama_context and llama_batch. 
-so this happens in for loop where you keep decoding untill you hit EOS character or you terminate if (prompt_token + predicted token) hit the context length , or we set manually how many we want to predict in the for loop of generating text
-
-the llama_batch keep updating as we predict the new tokens , then that token will be included in the new batch, and after prefill (first token decode ), 
+the llama_batch keep updating as we predict the new tokens, then that token will be included in the new batch, and after prefill (first token decode)
 
 call stack:
 
-llama_decode(ctx, batch) --> llama_decode_impl(*ctx, batch) -->llama_decode_impl(llama_context & lctx, llama_batch   inp_batch)-->llama_build_graph(lctx, ubatch, false)-->result = llm.build_llama()-->
+`llama_decode(ctx, batch)` --> `llama_decode_impl(*ctx, batch)` --> `llama_decode_impl(llama_context & lctx, llama_batch inp_batch)` --> `llama_build_graph(lctx, ubatch, false)` --> `result = llm.build_llama()`
 
-llama_decode_impl(llama_context & lctx, llama_batch   inp_batch): This function does all the work of LLM inference.
-      1. Breaks the large batch into small ones
-      2. llama_build_graph(lctx, ubatch, false) : builds computation graph
-      Q: how the batch details required in building comoutational garph? should not it be independent from batch details??
-      3. ggml_backend_sched_alloc_graph(lctx.sched.get(), gf): allocate resources ,this decides for entire comptutaion for that ubatch the resources required, internally doing what we saw in ggml allocation , but for specific backend.
-      4. llama_set_inputs(lctx, ubatch);
-      5. llama_graph_compute(lctx, gf, n_threads, threadpool);
-      6. extract the logits : last tensor would be resulting token and second last token would be its embedding, on which classification operation done to result token.
-      7. get the KV Cache update
+`llama_decode_impl(llama_context & lctx, llama_batch inp_batch)`: This function does all the work of LLM inference.
+1. Breaks the large batch into small ones
+2. `llama_build_graph(lctx, ubatch, false)`: builds computation graph Q: how the batch details required in building computational graph? should not it be independent from batch details??
+3. `ggml_backend_sched_alloc_graph(lctx.sched.get(), gf)`: allocate resources, this decides for entire computation for that ubatch the resources required, internally doing what we saw in ggml allocation, but for specific backend.
+4. `llama_set_inputs(lctx, ubatch)`
+5. `llama_graph_compute(lctx, gf, n_threads, threadpool)`
+6. extract the logits: last tensor would be resulting token and second last token would be its embedding, on which classification operation done to result token.
+7. get the KV Cache update
 
-      2. static struct ggml_cgraph * llama_build_graph(llama_context & lctx, const llama_ubatch & ubatch, bool worst_case) 
-            a.llm_build_context llm(lctx, ubatch, cb, worst_case): this is conatiner used for building entire graph. this will also imclude all the LLM models implenetation graph as member methods build_xyzmodel(). and from here onward inside the fuction such as for example build_llama(), it starts calling ggml library functions for building llm graphs by giving ggml_context as input
-             below is the flow of graph
-             1. Input token ID string to inpL embedding 
-             2. inpSA = inpL // Save input for residual connection
-             3. Pre-Attention Normalization:
-             cur = llm_build_norm(ctx0, inpL, hparams, model.layers[il].attn_norm, NULL, LLM_NORM_RMS, cb, il);
-             4. Self-Attention Block:
-                // Create Q, K, V matrices
-                Qcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wq, cur);
-                Qcur = ggml_add(ctx0, Qcur, model.layers[il].bq);  // Add bias if present
+2. `static struct ggml_cgraph * llama_build_graph(llama_context & lctx, const llama_ubatch & ubatch, bool worst_case)`
+   a. `llm_build_context llm(lctx, ubatch, cb, worst_case)`: this is container used for building entire graph. this will also include all the LLM models implementation graph as member methods build_xyzmodel(). and from here onward inside the function such as for example build_llama(), it starts calling ggml library functions for building llm graphs by giving ggml_context as input
+   below is the flow of graph:
+   1. Input token ID string to inpL embedding
+   2. `inpSA = inpL` // Save input for residual connection
+   3. Pre-Attention Normalization:
+      `cur = llm_build_norm(ctx0, inpL, hparams, model.layers[il].attn_norm, NULL, LLM_NORM_RMS, cb, il)`
+   4. Self-Attention Block:
+      ```cpp
+      // Create Q, K, V matrices
+      Qcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wq, cur);
+      Qcur = ggml_add(ctx0, Qcur, model.layers[il].bq);  // Add bias if present
 
-                Kcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wk, cur);
-                Kcur = ggml_add(ctx0, Kcur, model.layers[il].bk);  // Add bias if present
+      Kcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wk, cur);
+      Kcur = ggml_add(ctx0, Kcur, model.layers[il].bk);  // Add bias if present
 
-                Vcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wv, cur);
-                Vcur = ggml_add(ctx0, Vcur, model.layers[il].bv);  // Add bias if present
+      Vcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wv, cur);
+      Vcur = ggml_add(ctx0, Vcur, model.layers[il].bv);  // Add bias if present
 
-                // Apply RoPE to Q and K
-                Qcur = ggml_rope_ext(...);
-                Kcur = ggml_rope_ext(...);
+      // Apply RoPE to Q and K
+      Qcur = ggml_rope_ext(...);
+      Kcur = ggml_rope_ext(...);
 
-                // Compute attention and combine with values (MHA computation goes inside this)
-                cur = llm_build_kv(ctx0, lctx, kv_self, gf, model.layers[il].wo, model.layers[il].bo,
-                Kcur, Vcur, Qcur, KQ_mask, n_tokens, kv_head, n_kv, kq_scale, cb, il);
+      // Compute attention and combine with values (MHA computation goes inside this)
+      cur = llm_build_kv(ctx0, lctx, kv_self, gf, model.layers[il].wo, model.layers[il].bo,
+      Kcur, Vcur, Qcur, KQ_mask, n_tokens, kv_head, n_kv, kq_scale, cb, il);
+      ```
 
-             5. //Post-Attention Residual Connection
-                struct ggml_tensor * ffn_inp = ggml_add(ctx0, cur, inpSA)
+   5. Post-Attention Residual Connection:
+      ```cpp
+      struct ggml_tensor * ffn_inp = ggml_add(ctx0, cur, inpSA)
+      ```
 
-             6. //MoE (Mixture of Experts) Branch 
-             (Modified form of ffn Standard FFN: All inputs → Single FFN → Output
-                                            MoE: Input → Router → Selected Expert(s) → Combine Outputs → Output)
-                    
-                    
-                    // Pre-FFN Normalization
-                    cur = llm_build_norm(ctx0, ffn_inp, hparams, model.layers[il].ffn_norm, NULL, LLM_NORM_RMS, cb, il);
+   6. MoE (Mixture of Experts) Branch
+      (Modified form of ffn Standard FFN: All inputs → Single FFN → Output
+      MoE: Input → Router → Selected Expert(s) → Combine Outputs → Output)
 
-                    // MoE computation
+      ```cpp
+      // Pre-FFN Normalization
+      cur = llm_build_norm(ctx0, ffn_inp, hparams, model.layers[il].ffn_norm, NULL, LLM_NORM_RMS, cb, il);
 
-                    cur = llm_build_moe_ffn(ctx0, lctx, cur,
-                        model.layers[il].ffn_gate_inp,     // Router network
-                        model.layers[il].ffn_up_exps,      // Expert up-projection
-                        model.layers[il].ffn_gate_exps,    // Expert gates
-                        model.layers[il].ffn_down_exps,    // Expert down-projection
-                        nullptr,
-                        n_expert, n_expert_used,
-                        LLM_FFN_SILU, true,
-                        false, 0.0,
-                        LLAMA_EXPERT_GATING_FUNC_TYPE_SOFTMAX,
-                        cb, il)
+      // MoE computation
+      cur = llm_build_moe_ffn(ctx0, lctx, cur,
+          model.layers[il].ffn_gate_inp,     // Router network
+          model.layers[il].ffn_up_exps,      // Expert up-projection
+          model.layers[il].ffn_gate_exps,    // Expert gates
+          model.layers[il].ffn_down_exps,    // Expert down-projection
+          nullptr,
+          n_expert, n_expert_used,
+          LLM_FFN_SILU, true,
+          false, 0.0,
+          LLAMA_EXPERT_GATING_FUNC_TYPE_SOFTMAX,
+          cb, il)
+      ```
 
+   7. Final Residual Connection and Layer Output after FFN:
+      ```cpp
+      cur = ggml_add(ctx0, cur, ffn_inp);  // Add residual connection
+      cur = lctx.cvec.apply_to(ctx0, cur, il);  // Apply any context vectors
+      inpL = cur;  // Prepare for next layer
+      ```
 
-            7.//Final Residual Connection and Layer Output after FFN
+   8. After completing steps above for all layer attention, it exits the transformer block
+   9. Final Normalization:
+      ```cpp
+      cur = llm_build_norm(ctx0, cur, hparams, model.output_norm, NULL, LLM_NORM_RMS, cb, -1)
+      ```
 
-                cur = ggml_add(ctx0, cur, ffn_inp);  // Add residual connection
-                cur = lctx.cvec.apply_to(ctx0, cur, il);  // Apply any context vectors
-                inpL = cur;  // Prepare for next layer
+   10. Language Model Head (lm_head):
+       ```cpp
+       cur = llm_build_lora_mm(lctx, ctx0, model.output, cur)
+       ```
 
-            8. After completing steps above for all layer attention, it exits the transformer block
-            9. Final Normalization
-                cur = llm_build_norm(ctx0, cur, hparams, model.output_norm, NULL, LLM_NORM_RMS, cb, -1)
+   11. Final Graph building by traversing from parent node:
+       ```cpp
+       ggml_build_forward_expand(gf, cur)
+       ```
 
-            10. Language Model Head (lm_head)
-                cur = llm_build_lora_mm(lctx, ctx0, model.output, cur)
+`llama_graph_compute(lctx, gf, n_threads, threadpool)` CALL STACK:
+`ggml_backend_sched_graph_compute_async(lctx.sched.get(), gf)` --> `ggml_backend_sched_compute_splits(sched)` --> `ggml_backend_graph_compute_async(split_backend, &split->graph)` -->
 
-            11. Final Graph building by traversing from parent node
-                ggml_build_forward_expand(gf, cur)
- 
+```cpp
+enum ggml_status ggml_backend_graph_compute_async(ggml_backend_t backend, struct ggml_cgraph * cgraph) {
+    return backend->iface.graph_compute(backend, cgraph);
+}
+```
 
- 5. llama_graph_compute(lctx, gf, n_threads, threadpool) CALL STACK: 
-    ggml_backend_sched_graph_compute_async(lctx.sched.get(), gf)-->ggml_backend_sched_compute_splits(sched)-->ggml_backend_graph_compute_async(split_backend, &split->graph)-->
-    
-    
-    enum ggml_status ggml_backend_graph_compute_async(ggml_backend_t backend, struct ggml_cgraph * cgraph) {
-    return backend->iface.graph_compute(backend, cgraph);}
+This is where it will start calling back-end specific compute kernels, for CPU it is `ggml_backend_cpu_graph_compute(ggml_backend_t backend, struct ggml_cgraph * cgraph)` --> `ggml_graph_compute(cgraph, &cplan)`; which we have already mentioned how down the line that distributes
 
-
-    This is where it will start calling back-end specific compute kernels , for CPU it is 
-    ggml_backend_cpu_graph_compute(ggml_backend_t backend, struct ggml_cgraph * cgraph)--->ggml_graph_compute(cgraph, &cplan); : whcih we have already mentioned how down the line that distributes 
-
-    ISSUE: How to ROI marker need to be places on the entire graph traversal ????
-
+ISSUE: How to ROI marker need to be places on the entire graph traversal ????
 
 
             
