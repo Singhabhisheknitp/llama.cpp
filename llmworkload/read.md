@@ -296,7 +296,7 @@ call stack:
 2. `static struct ggml_cgraph * llama_build_graph(llama_context & lctx, const llama_ubatch & ubatch, bool worst_case)`
    a. `llm_build_context llm(lctx, ubatch, cb, worst_case)`: this is container used for building entire graph. this will also include all the LLM models implementation graph as member methods build_xyzmodel(). and from here onward inside the function such as for example build_llama(), it starts calling ggml library functions for building llm graphs by giving ggml_context as input
    below is the flow of graph:
-   1. Input token ID string to inpL embedding
+   1. `inpL = llm_build_inp_embd(ctx0, lctx, hparams, ubatch, model.tok_embd, cb) ` //Input token ID string to inpL embedding
    2. `inpSA = inpL` // Save input for residual connection
    3. Pre-Attention Normalization:
       `cur = llm_build_norm(ctx0, inpL, hparams, model.layers[il].attn_norm, NULL, LLM_NORM_RMS, cb, il)`
