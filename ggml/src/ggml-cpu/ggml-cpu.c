@@ -12,6 +12,7 @@
 #include "ggml-threading.h"
 #include "amx/amx.h"
 #include "ggml.h"
+#include "sim_api.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
@@ -12818,6 +12819,16 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
             {
                 // nop
             } break;
+
+
+        case GGML_OP_SIM_ROI_START:
+        {
+            SimRoiStart();
+        } break;
+        case GGML_OP_SIM_ROI_END:
+        {
+            SimRoiEnd();
+        } break;
         case GGML_OP_COUNT:
             {
                 GGML_ABORT("fatal error");
