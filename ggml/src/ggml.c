@@ -894,8 +894,11 @@ struct ggml_context_container {
 //
 
 static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
+  
     "NONE",
 
+    "SIM_ROI_START",
+    "SIM_ROI_END",
     "DUP",
     "ADD",
     "ADD1",
@@ -987,10 +990,12 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "OPT_STEP_ADAMW",
 };
 
-static_assert(GGML_OP_COUNT == 82, "GGML_OP_COUNT != 82");
+static_assert(GGML_OP_COUNT == 84, "GGML_OP_COUNT != 84");  // 84 is the number of operations in ggml.h after SIMROI additions
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
+    "SIM_ROI_START",
+    "SIM_ROI_END",
 
     "x",
     "x+y",
@@ -1083,7 +1088,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "adamw(x)",
 };
 
-static_assert(GGML_OP_COUNT == 82, "GGML_OP_COUNT != 82");
+static_assert(GGML_OP_COUNT == 84, "GGML_OP_COUNT != 84");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -6438,7 +6443,7 @@ bool ggml_threadpool_params_match(const struct ggml_threadpool_params * p0, cons
 
 ///////////////////////SIMROI magic functions for sniper support /////////////////////////
 
-static struct ggml_tensor * ggml_sim_roi_end_impl(
+static struct ggml_tensor * ggml_sim_roi_start_impl(
         struct ggml_context * ctx,
         struct ggml_tensor  * input) {
     struct ggml_tensor * result = ggml_view_tensor(ctx, input);
