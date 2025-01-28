@@ -429,6 +429,8 @@ extern "C" {
     enum ggml_op {
         GGML_OP_NONE = 0,
 
+        GGML_OP_SIM_ROI_START,
+        GGML_OP_SIM_ROI_END,
         GGML_OP_DUP,
         GGML_OP_ADD,
         GGML_OP_ADD1,
@@ -2160,3 +2162,13 @@ extern "C" {
 #ifdef  __cplusplus
 }
 #endif
+
+struct ggml_tensor * ggml_sim_roi_start_impl(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * input);
+
+struct ggml_tensor * ggml_sim_roi_end_impl(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * input);
+
+
