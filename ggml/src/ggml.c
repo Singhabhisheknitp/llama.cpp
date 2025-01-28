@@ -6433,3 +6433,29 @@ bool ggml_threadpool_params_match(const struct ggml_threadpool_params * p0, cons
     if (p0->strict_cpu     != p1->strict_cpu )    return false;
     return memcmp(p0->cpumask, p1->cpumask, GGML_MAX_N_THREADS) == 0;
 }
+
+
+
+///////////////////////SIMROI magic functions for sniper support /////////////////////////
+
+static struct ggml_tensor * ggml_sim_roi_end_impl(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * input) {
+    struct ggml_tensor * result = ggml_view_tensor(ctx, input);
+
+    result->op     = GGML_OP_SIM_ROI_START;   
+    result->src[0] = input;
+   
+    return result;
+}
+
+static struct ggml_tensor * ggml_sim_roi_end_impl(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * input) {
+    struct ggml_tensor * result = ggml_view_tensor(ctx, input);
+
+    result->op     = GGML_OP_SIM_ROI_END;   
+    result->src[0] = input;
+   
+    return result;
+}
