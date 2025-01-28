@@ -384,8 +384,18 @@ This is where it will start calling back-end specific compute kernels, for CPU i
 
 ISSUE: How to ROI marker need to be places on the entire graph traversal ????
 
+ggml.c
+ggml.h
+ggml.cpu
+
 
             
+
+# Sniper ROI Support for llama.cpp file
+
+1. ggml.h/ggml.c:Added the function definition for ROI_Start() and ROI_End() in ggml.h/ggml.c : ggml_sim_roi_start_impl, ggml_sim_roi_end_impl
+2. ggml.c: Added the actual call to SIM_ROI() in ggml.c file ggml_compute_forward() and ggml_compute_get_n_task()
+3. Added the Node name for ROI markers in GGML_OP_SYMBOL and GGML_OP_NAME
 
 
 
