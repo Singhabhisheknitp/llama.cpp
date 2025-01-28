@@ -2163,10 +2163,10 @@ extern "C" {
 }
 #endif
 
-struct ggml_tensor * ggml_sim_roi_start_impl(
+ struct ggml_tensor * ggml_sim_roi_start_impl(
     struct ggml_context * ctx,
     struct ggml_tensor  * input);
-
+    
 struct ggml_tensor * ggml_sim_roi_end_impl(
     struct ggml_context * ctx,
     struct ggml_tensor  * input);
