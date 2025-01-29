@@ -10,6 +10,7 @@
 #include "llama-model.h"
 
 #include "ggml.h"
+#include "ggml-cpu.h"
 #include "ggml-alloc.h"
 #include "ggml-backend.h"
 #include "ggml-cpp.h"
@@ -3885,7 +3886,10 @@ struct llm_build_context {
         struct ggml_tensor * cur;
         struct ggml_tensor * inpL;
 
+
+        
         inpL = llm_build_inp_embd(ctx0, lctx, hparams, ubatch, model.tok_embd, cb);
+        
 
         // inp_pos - contains the positions
         struct ggml_tensor * inp_pos = build_inp_pos();
@@ -3898,9 +3902,14 @@ struct llm_build_context {
             struct ggml_tensor * inpSA = inpL;
 
             // norm
-            cur = llm_build_norm(ctx0, inpL, hparams,
+            struct ggml_tensor * roi_start = ggml_sim_roi_start_impl(ctx0, inpL);
+            struct ggml_tensor * sim = llm_build_norm(ctx0, roi_start, hparams,
                     model.layers[il].attn_norm, NULL,
                     LLM_NORM_RMS, cb, il);
+
+            struct ggml_tensor * cur = ggml_sim_roi_end_impl(ctx0, sim);
+
+
             cb(cur, "attn_norm", il);
 
             // self-attention

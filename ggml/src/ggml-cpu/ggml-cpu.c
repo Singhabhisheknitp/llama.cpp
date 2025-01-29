@@ -12824,10 +12824,12 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
         case GGML_OP_SIM_ROI_START:
         {
             SimRoiStart();
+            printf("SimRoiStart\n");
         } break;
         case GGML_OP_SIM_ROI_END:
         {
             SimRoiEnd();
+            printf("SimRoiEnd\n");
         } break;
         case GGML_OP_COUNT:
             {
