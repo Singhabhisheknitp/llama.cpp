@@ -398,8 +398,10 @@ ggml.cpu
 3. Added the Node name for ROI markers in GGML_OP_SYMBOL and GGML_OP_NAME
 
 
-
-
+on ggml.h
+---------------
+#define GGML_DEFAULT_N_THREADS  32
+#define GGML_DEFAULT_GRAPH_SIZE 2048  
 
 
 
