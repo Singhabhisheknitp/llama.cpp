@@ -37,17 +37,17 @@ int main() {
 
 
     // 3. Create a `ggml_cgraph` for some operation
-    // ggml_cgraph: Represents a computational graph.
-    // Think of it as the "order of computation" that will be transferred to the backend.
+   
     struct ggml_cgraph * gf = ggml_new_graph(ctx);
     printf("Number of nodes in graph: %d\n", gf->n_nodes);
     // Create multiple operations
-    struct ggml_tensor * c = ggml_add(ctx, a, b);          // c = a + b
-    struct ggml_tensor * d = ggml_mul_mat(ctx, a, b);      // d = a * b (matrix multiplication)
-    struct ggml_tensor * e = ggml_mul(ctx, c, d);          // e = c * d (element-wise multiplication)
-    struct ggml_tensor * f = ggml_scale(ctx, e, 0.5f);     // f = 0.5 * e (scaling)
-    struct ggml_tensor * g = ggml_relu(ctx, f);            // g = relu(f)
-    // Mark the last tensor as the output tensor 
+    struct ggml_tensor * c = ggml_add(ctx, a, b);          
+    struct ggml_tensor * roi_start = ggml_sim_roi_start_impl(ctx, c);          
+    struct ggml_tensor * f = ggml_scale(ctx, roi_start, 0.5f);  
+    struct ggml_tensor * roi_end = ggml_sim_roi_end_impl(ctx, f);
+    struct ggml_tensor * g = ggml_relu(ctx, roi_end);            
+
+
     ggml_build_forward_expand(gf, g);
     printf("Number of nodes in graph: %d\n", gf->n_nodes);
 
