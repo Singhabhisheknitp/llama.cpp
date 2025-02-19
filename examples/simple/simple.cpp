@@ -18,7 +18,7 @@ int main(int argc, char ** argv) {
     // number of layers to offload to the GPU
     int ngl = 99;
     // number of tokens to predict
-    int n_predict = 32;
+    int n_predict = 8;
 
     // parse command line arguments
 
@@ -182,6 +182,8 @@ int main(int argc, char ** argv) {
             batch = llama_batch_get_one(&new_token_id, 1);
 
             n_decode += 1;
+            printf("\n no of decoded tokens in the context: %d \n", n_decode);
+           
         }
     }
 

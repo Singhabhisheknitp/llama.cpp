@@ -3902,12 +3902,11 @@ struct llm_build_context {
             struct ggml_tensor * inpSA = inpL;
 
             // norm
-            // struct ggml_tensor * roi_start = ggml_sim_roi_start_impl(ctx0, inpL);
-            struct ggml_tensor * cur = llm_build_norm(ctx0, inpL, hparams,
+            inpL = ggml_sim_roi_start_impl(ctx0, inpL);
+            cur = llm_build_norm(ctx0, inpL, hparams,
                     model.layers[il].attn_norm, NULL,
                     LLM_NORM_RMS, cb, il);
-
-            // struct ggml_tensor * cur = ggml_sim_roi_end_impl(ctx0, sim);
+            cur = ggml_sim_roi_end_impl(ctx0, cur);
 
 
             cb(cur, "attn_norm", il);
@@ -3995,7 +3994,7 @@ struct llm_build_context {
                         LLM_NORM_RMS, cb, il);
                 cb(cur, "ffn_norm", il);
 
-                cur = ggml_sim_roi_start_impl(ctx0, cur);
+                
 
                 cur = llm_build_moe_ffn(ctx0, lctx, cur,
                         model.layers[il].ffn_gate_inp,
@@ -4008,7 +4007,7 @@ struct llm_build_context {
                         false, 0.0,
                         LLAMA_EXPERT_GATING_FUNC_TYPE_SOFTMAX,
                         cb, il);
-                cur = ggml_sim_roi_end_impl(ctx0, cur);
+
                 cb(cur, "ffn_moe_out", il);
             }
 
