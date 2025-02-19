@@ -3902,12 +3902,11 @@ struct llm_build_context {
             struct ggml_tensor * inpSA = inpL;
 
             // norm
-            // struct ggml_tensor * roi_start = ggml_sim_roi_start_impl(ctx0, inpL);
-            struct ggml_tensor * cur = llm_build_norm(ctx0, inpL, hparams,
+            inpL = ggml_sim_roi_start_impl(ctx0, inpL);
+            cur = llm_build_norm(ctx0, inpL, hparams,
                     model.layers[il].attn_norm, NULL,
                     LLM_NORM_RMS, cb, il);
-
-            // struct ggml_tensor * cur = ggml_sim_roi_end_impl(ctx0, sim);
+            cur = ggml_sim_roi_end_impl(ctx0, cur);
 
 
             cb(cur, "attn_norm", il);
